@@ -60,11 +60,12 @@ import os.path
 import re  # TODO use regex when it will be standard
 import sys
 from io import StringIO
-from multiprocessing import Queue, get_context, cpu_count
+from multiprocessing import Queue, get_context, cpu_count, Process
 from timeit import default_timer
 
-from .extract import Extractor, ignoreTag, define_template, acceptedNamespaces
-
+from extract import Extractor, ignoreTag, define_template, acceptedNamespaces
+import multiprocessing
+#multiprocessing.set_start_method("fork", force=True)
 # ===========================================================================
 
 # Program version
@@ -276,7 +277,7 @@ def decode_open(filename, mode='rt', encoding='utf-8'):
     else:
         return open(filename, mode, encoding=encoding)
 
-
+redirectRE = re.compile(r'title=\"(.*?)\" />')
 def collect_pages(text):
     """
     :param text: the text of a wikipedia file dump.
@@ -287,6 +288,7 @@ def collect_pages(text):
     id = ''
     revid = ''
     last_id = ''
+    redirect_page = ''
     inText = False
     redirect = False
     for line in text:
@@ -308,6 +310,7 @@ def collect_pages(text):
         elif tag == 'title':
             title = m.group(3)
         elif tag == 'redirect':
+            redirect_page = re.findall(redirectRE, line)[0]
             redirect = True
         elif tag == 'text':
             inText = True
@@ -325,10 +328,11 @@ def collect_pages(text):
             colon = title.find(':')
             if (colon < 0 or (title[:colon] in acceptedNamespaces) and id != last_id and
                     not redirect and not title.startswith(templateNamespace)):
-                yield (id, revid, title, page)
+                yield (id, revid, title, page, redirect_page)
                 last_id = id
             id = ''
             revid = ''
+            redirect_page = ''
             page = []
             inText = False
             redirect = False
@@ -411,7 +415,7 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     # - a reduce process collects the results, sort them and print them.
 
     # fixes MacOS error: TypeError: cannot pickle '_io.TextIOWrapper' object
-    Process = get_context("fork").Process
+    #Process = get_context("spawn").Process
 
     maxsize = 10 * process_count
     # output queue

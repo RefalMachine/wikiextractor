@@ -82,7 +82,7 @@ def clean(extractor, text, expand_templates=False, html_safe=True):
     if expand_templates:
         # expand templates
         # See: http://www.mediawiki.org/wiki/Help:Templates
-        pdb.set_trace()         # DEBUG
+        #pdb.set_trace()         # DEBUG
         text = extractor.expandTemplates(text)
     else:
         # Drop transclusions (template, parser functions)
@@ -983,7 +983,7 @@ class Extractor():
                 'title': self.title,
                 'text': "\n".join(text)
             }
-            out_str = json.dumps(json_data)
+            out_str = json.dumps(json_data, ensure_ascii=False, indent=4)
             out.write(out_str)
             out.write('\n')
         else:
